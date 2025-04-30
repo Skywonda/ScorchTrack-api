@@ -8,8 +8,7 @@ class AIService:
     def __init__(self):
         self.api_key = settings.GEMINI_API_KEY
         genai.configure(api_key=self.api_key)
-        # self.model = genai.GenerativeModel('gemini-1.5-pro')
-        self.model = genai.GenerativeModel('gemini-2.5-pro-preview-03-25')
+        self.model = genai.GenerativeModel('gemini-1.5-pro')
     
     async def generate_roast(
         self, 
