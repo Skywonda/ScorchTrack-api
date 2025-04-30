@@ -35,6 +35,26 @@ def create_routine(
     db.refresh(routine)
     return routine
 
+@router.get("/", response_model=List[RoutineSchema])
+def read_routines(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> Any:
+    return db.query(Routine).filter(Routine.user_id == current_user.id).all()
+
+@router.get("/{routine_id}", response_model=RoutineSchema)
+def read_routine(
+    routine_id: int = Path(..., gt=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> Any:
+    routine = db.query(Routine).filter(
+        Routine.id == routine_id, Routine.user_id == current_user.id
+    ).first()
+    if not routine:
+        raise HTTPException(status_code=404, detail="Routine not found")
+    return routine
+
 @router.put("/{routine_id}", response_model=RoutineSchema)
 def update_routine(
     routine_id: int = Path(..., gt=0),
