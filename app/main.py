@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Depends
+# In app/main.py
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from contextlib import asynccontextmanager
@@ -6,7 +7,7 @@ from contextlib import asynccontextmanager
 from app.api.routes import auth, users, routines, progress, whatsapp
 from app.config import settings
 from app.core.scheduler import scheduler
-from app.db.database import Base, engine, create_tables
+from app.db.database import Base, engine, create_tables, drop_tables
 
 create_tables()
 
@@ -41,9 +42,10 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=settings.CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=True,
 )
 
 app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
@@ -81,3 +83,12 @@ def root():
         "docs": "/docs",
         "redoc": "/redoc"
     }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "app.main:app", 
+        host=settings.HOST, 
+        port=settings.PORT,
+        reload=False 
+    )

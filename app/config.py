@@ -1,3 +1,4 @@
+import os
 from pydantic import PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -21,6 +22,11 @@ class Settings(BaseSettings):
     GREEN_API_WEBHOOK_TOKEN: str
     
     GEMINI_API_KEY: str
+    
+    PORT: int = int(os.getenv("PORT", 8000))
+    HOST: str = os.getenv("HOST", "0.0.0.0") 
+    
+    CORS_ORIGINS: list[str] = ["*"]  
     
     model_config = SettingsConfigDict(
         env_file=".env",
