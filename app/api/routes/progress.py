@@ -5,6 +5,7 @@ from typing import Any, List
 from app.api.deps import get_current_active_user, get_db
 from app.db.models import Task, TaskCompletion, User
 from app.schemas.routine import TaskCompletion as TaskCompletionSchema, TaskCompletionCreate
+from app.schemas.api_docs import UserStatsResponse
 from app.services.gamification import gamification_service
 
 router = APIRouter()
@@ -73,3 +74,20 @@ def get_user_completions(
     ).all()
     
     return completions
+
+@router.get("/stats", response_model=UserStatsResponse)
+def get_user_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> Any:
+    """
+    Get statistics for the current user including:
+    - Points
+    - Completed tasks count
+    - Missed tasks count
+    - Completion rate
+    - Current streak
+    - Recent achievements
+    """
+    stats = gamification_service.get_user_stats(db, current_user.id)
+    return stats
