@@ -11,7 +11,7 @@ class UserCreate(UserBase):
 
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
-    phone_number: Optional[str] = None
+    whatsapp_number: Optional[str] = None
 
 class UserInDBBase(UserBase):
     id: int

@@ -41,6 +41,19 @@ class TaskInDBBase(TaskBase):
 class Task(TaskInDBBase):
     pass
 
+class TaskCompletion(BaseModel):
+    id: int
+    task_id: int
+    user_id: int
+    completed_at: datetime
+    notes: Optional[str]
+
+class TaskCompletionBase(BaseModel):
+    notes: Optional[str] = None
+
+class TaskCompletionCreate(TaskCompletionBase):
+    pass
+
 class RoutineBase(BaseModel):
     title: str
     description: Optional[str] = None

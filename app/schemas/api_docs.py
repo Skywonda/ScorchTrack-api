@@ -54,25 +54,20 @@ class UserCreateRequest(BaseModel):
                 "email": "user@example.com",
                 "username": "accountability_master",
                 "password": "securepassword123",
-                "full_name": "John Doe",
-                "phone_number": "+1234567890",
-                "whatsapp_opt_in": True,
-                "roast_intensity": "medium"
+                "whatsapp_number": "+1234567890",
             }
         }
 
 class UserUpdateRequest(BaseModel):
     """Request model for updating user profile."""
     email: Optional[EmailStr] = Field(None, description="User's new email address")
-    whatsapp_opt_in: Optional[bool] = Field(None, description="Update WhatsApp notification preference")
-    roast_intensity: Optional[RoastIntensity] = Field(None, description="Update roast intensity level")
+    whatsapp_number: Optional[str] = Field(None, description="User's new WhatsApp number")
 
     class Config:
         schema_extra = {
             "example": {
-                "full_name": "John Smith",
-                "whatsapp_opt_in": True,
-                "roast_intensity": "spicy"
+                "email": "user@example.com",
+                "whatsapp_number": "+1234567890",
             }
         }
 
@@ -82,8 +77,7 @@ class UserResponse(BaseModel):
     email: EmailStr = Field(..., description="User's email address")
     username: str = Field(..., description="User's username")
     is_active: bool = Field(..., description="Whether the user account is active")
-    whatsapp_opt_in: bool = Field(..., description="Whether the user receives WhatsApp notifications")
-    roast_intensity: RoastIntensity = Field(..., description="User's chosen roast intensity")
+    whatsapp_number: Optional[str] = Field(None, description="User's WhatsApp number")
     points: int = Field(..., description="User's total achievement points")
     created_at: datetime = Field(..., description="When the user account was created")
     updated_at: datetime = Field(..., description="When the user account was last updated")
@@ -96,8 +90,7 @@ class UserResponse(BaseModel):
                 "email": "user@example.com",
                 "username": "accountability_master",
                 "is_active": True,
-                "whatsapp_opt_in": True,
-                "roast_intensity": "medium",
+                "whatsapp_number": "+1234567890",
                 "points": 150,
                 "created_at": "2025-04-20T10:30:00Z",
                 "updated_at": "2025-04-28T16:45:00Z"
