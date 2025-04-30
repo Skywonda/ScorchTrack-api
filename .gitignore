@@ -1,0 +1,11 @@
+
+/venv
+
+# python
+__pycache__
+
+# alembic
+.alembic
+
+# env
+.env
