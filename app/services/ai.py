@@ -8,35 +8,23 @@ class AIService:
     def __init__(self):
         self.api_key = settings.GEMINI_API_KEY
         genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-pro')
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
     
     async def generate_roast(
         self, 
         user: User, 
         context: Dict[str, Any]
     ) -> str:
-        
-        missed_tasks = context.get('missed_tasks', [])
-        task_names = [task['title'] for task in missed_tasks]
-        streak_breaks = context.get('streak_breaks', 0)
-        missed_days = context.get('missed_days', 0)
-        
-        prompt = self._create_roast_prompt(
-            username=user.username,
-            task_names=task_names,
-            streak_breaks=streak_breaks,
-            missed_days=missed_days,
-            intensity=RoastIntensity.EXTREME
-        )
-        
         try:
+            prompt = self._create_roast_prompt(context)
+            
             response = await self.model.generate_content_async(prompt)
             roast_content = response.text
+            print("🚀 ~ roast_content:", roast_content)
             return roast_content
         except Exception as e:
             print(f"Error generating roast: {str(e)}")
             return f"Hey {user.username}, we noticed you missed your tasks. Don't make us come find you! Get back on track."
-    
     
     async def generate_daily_roast(self) -> str:
         """
@@ -128,33 +116,69 @@ class AIService:
                 "Let's make it happen! 💪 #NoExcuses"
             )
     def _create_roast_prompt(
-        self, 
-        username: str,
-        task_names: List[str],
-        streak_breaks: int,
-        missed_days: int,
-        intensity: RoastIntensity
+        self,
+        context: Dict[str, Any],
+        intensity: RoastIntensity = None
     ) -> str:
-        tasks_str = ", ".join(task_names) if task_names else "your tasks"
+        username = context.get('username', 'user')
+        routine_name = context.get('routine_name', '')
+        missed_tasks = context.get('missed_tasks', [])
         
-        prompt_prefix = f"Generate a personalized accountability 'roast' message for a user named {username} who has missed {tasks_str}. "
-        prompt_prefix += f"They've broken their streak {streak_breaks} times and missed {missed_days} days. "
+        if intensity is None:
+            intensity_str = context.get('roast_intensity', 'medium')
+            if isinstance(intensity_str, str):
+                intensity = getattr(RoastIntensity, intensity_str.upper(), RoastIntensity.MEDIUM)
+            else:
+                intensity = intensity_str
+        
+        task_details = []
+        longest_streak = 0
+        
+        for task in missed_tasks:
+            title = task.get('title', 'task')
+            days_missed = task.get('days_missed', 1)
+            longest_streak = max(longest_streak, days_missed)
+            
+            if days_missed > 1:
+                task_details.append(f"{title} (missed for {days_missed} days)")
+            else:
+                task_details.append(title)
+        
+        tasks_str = ", ".join(task_details) if task_details else "your tasks"
+        
+        prompt = f"Generate a personalized accountability 'roast' message for {username} who has missed {tasks_str} "
+        
+        if routine_name:
+            prompt += f"from their {routine_name} routine. "
+        else:
+            prompt += "from their routine. "
+        
+        if longest_streak > 1:
+            prompt += f"They have tasks that have been missed for up to {longest_streak} consecutive days. "
         
         if intensity == RoastIntensity.MILD:
-            prompt_prefix += "Keep it light, friendly, and mildly teasing - just enough to motivate them but not too harsh. "
-            prompt_prefix += "Use humor but be encouraging. "
+            prompt += "Keep it light, friendly, and mildly teasing - just enough to motivate them but not too harsh. "
+            prompt += "Use humor but be encouraging. "
         elif intensity == RoastIntensity.MEDIUM:
-            prompt_prefix += "Use moderate teasing with a bit more edge, but still keep it motivational. "
-            prompt_prefix += "Include some humor but make the accountability more direct. "
+            prompt += "Use moderate teasing with a bit more edge, but still keep it motivational. "
+            prompt += "Include some humor but make the accountability more direct. "
         elif intensity == RoastIntensity.SPICY:
-            prompt_prefix += "Make it spicy and direct with sharp humor and strong accountability. "
-            prompt_prefix += "Don't hold back much, but avoid being truly mean. Funny but brutally honest. "
+            prompt += "Make it spicy and direct with sharp humor and strong accountability. "
+            prompt += "Don't hold back much, but avoid being truly mean. Funny but brutally honest. "
         elif intensity == RoastIntensity.EXTREME:
-            prompt_prefix += "Go all out with an extreme roast - brutal honesty, sharp wit, and no-holds-barred accountability. "
-            prompt_prefix += "Make it uncomfortably direct but still ultimately motivational. "
+            prompt += "Go all out with an extreme roast - brutal honesty, sharp wit, and no-holds-barred accountability. "
+            prompt += "Make it uncomfortably direct but still ultimately motivational. "
+            
+            multiple_day_tasks = [task for task in missed_tasks if task.get('days_missed', 1) > 1]
+            if multiple_day_tasks:
+                task_names = [f"{task['title']} ({task['days_missed']} days)" for task in multiple_day_tasks]
+                prompt += f"Emphasize that they've repeatedly ignored {', '.join(task_names)}. "
         
-        prompt_suffix = "Keep it under 100 words, use emojis where appropriate, and end with a motivational call to action. Don't use placeholder text."
+        # Add formatting guidance
+        prompt += "Keep it under 100 words, use emojis where appropriate, and end with a motivational call to action. "
+        prompt += "Incorporate specific task names in the roast. Don't use placeholder text."
         
-        return prompt_prefix + prompt_suffix
+        return prompt
+
 
 ai_service = AIService()
