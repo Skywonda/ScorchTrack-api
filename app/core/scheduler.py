@@ -96,69 +96,63 @@ class TaskScheduler:
             print(f"Error in daily roast: {str(e)}")
         finally:
             db.close()  
+  
     async def send_daily_group_update(self):
         db = SessionLocal()
         try:
-            users = db.query(User).filter(User.is_active == True).all()
-            
-            total_tasks = db.query(Task).count()
             today = datetime.utcnow().date()
             today_start = datetime.combine(today, datetime.min.time())
             today_end = datetime.combine(today, datetime.max.time())
+            
+            missed_by_user = task_service.get_missed_tasks_by_user(db)
+            
+            total_tasks = db.query(Task).join(Routine).filter(
+                Routine.is_active == True,
+                Task.is_active == True
+            ).count()
             
             completed_tasks = db.query(TaskCompletion).filter(
                 TaskCompletion.completed_at >= today_start,
                 TaskCompletion.completed_at <= today_end
             ).count()
             
-            user_tasks = db.query(Task).all()
-            missed_tasks = []
-            for task in user_tasks:
-                completed = db.query(TaskCompletion).filter(
-                    TaskCompletion.task_id == task.id,
-                    TaskCompletion.completed_at >= today_start,
-                    TaskCompletion.completed_at <= today_end
-                ).first()
-                
-                if not completed:
-                    missed_tasks.append(task)
-            
             message = "📊 *Daily Accountability Check* 🔍\n\n"
             message += f"*Total Tasks Today:* {total_tasks}\n"
             message += f"*Completed Tasks:* {completed_tasks}\n"
             message += f"*Completion Rate:* {round(completed_tasks/max(1,total_tasks)*100, 1)}%\n\n"
             
-            if missed_tasks:
+            all_missed_tasks = []
+            for user_tasks in missed_by_user.values():
+                for task, _ in user_tasks:
+                    all_missed_tasks.append(task)
+            
+            if all_missed_tasks:
                 message += "*Tasks Left Behind:*\n"
-                for task in missed_tasks[:5]:  # Limit to 5 tasks
+                for task in all_missed_tasks[:5]:  
                     message += f"- {task.title} (Task #{task.id})\n"
                 
-                if len(missed_tasks) > 5:
-                    message += f"\n*... and {len(missed_tasks)-5} more*"
+                if len(all_missed_tasks) > 5:
+                    message += f"\n*... and {len(all_missed_tasks)-5} more*\n"
             
-            if len(missed_tasks) > (total_tasks / 2):
-                roast_context = {
-                    "missed_tasks": [{"title": task.title} for task in missed_tasks],
-                    "streak_breaks": len(missed_tasks),
-                    "missed_days": 1
-                }
-                
-                roast_user = users[0] if users else None
-                
-                if roast_user:
-                    try:
-                        roast_content = await ai_service.generate_roast(roast_user, roast_context)
-                        message += f"\n🔥 *Group Roast:* {roast_content}"
-                    except Exception as e:
-                        print(f"Error generating group roast: {str(e)}")
+            for user_id, user_missed_tasks in missed_by_user.items():
+                if len(user_missed_tasks) >= 3:
+                    user = db.query(User).filter(User.id == user_id).first()
+                    if user and user.is_active:
+                        try:
+                            roast_context = task_service.build_roast_context(user, user_missed_tasks)
+                            
+                            roast_content = await ai_service.generate_roast(user, roast_context)
+                            message += f"\n🔥 *Personal Roast for @{user.username}:* {roast_content}\n"
+                        except Exception as e:
+                            print(f"Error generating roast for {user.username}: {str(e)}")
             
             await whatsapp_service.send_group_message(message)
-        
+
         except Exception as e:
             print(f"Error in daily group update: {str(e)}")
         finally:
             db.close()
-    
+        
     async def send_weekly_group_report(self):
         db = SessionLocal()
         try:
