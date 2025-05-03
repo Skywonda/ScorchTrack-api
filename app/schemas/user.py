@@ -5,6 +5,7 @@ from pydantic import BaseModel, EmailStr
 class UserBase(BaseModel):
     email: EmailStr
     username: str
+    whatsapp_number: Optional[str]
 
 class UserCreate(UserBase):
     password: str
