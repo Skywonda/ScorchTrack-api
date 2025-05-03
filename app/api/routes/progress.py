@@ -71,7 +71,7 @@ def get_user_completions(
 ) -> Any:
     completions = db.query(TaskCompletion).filter(
         TaskCompletion.user_id == current_user.id
-    ).all()
+    ).order_by(TaskCompletion.completed_at.desc()).all()
     
     return completions
 
