@@ -7,7 +7,7 @@ from app.db.database import SessionLocal
 from app.db.models import TaskFrequency, User, Routine, Task, TaskCompletion
 from app.services.greenapi_whatsapp import whatsapp_service
 from app.services.ai import ai_service
-from app.services.gamification import gamification_service
+from app.services.task_service import task_service
 
 class TaskScheduler:
     def __init__(self):
@@ -21,13 +21,13 @@ class TaskScheduler:
         
         self.scheduler.add_job(
             self.send_daily_group_update,
-            CronTrigger(hour=20, minute=0),  # 8 PM daily
+            CronTrigger(hour=19, minute=0),  # 8 PM daily
             id="daily_group_update"
         )
         
         self.scheduler.add_job(
             self.send_daily_roast,
-            CronTrigger(hour=12, minute=0),  # 12 PM daily
+            CronTrigger(hour=11, minute=0),  # 12 PM daily
             # CronTrigger(second="*/5"),
             id="daily_roast"
         )
@@ -67,81 +67,25 @@ class TaskScheduler:
     async def send_daily_roast(self):
         db = SessionLocal()
         try:
-            today = datetime.utcnow().date()
-            today_start = datetime.combine(today, datetime.min.time())
-            today_end = datetime.combine(today, datetime.max.time())
-            
-            due_tasks = []
-            tasks = db.query(Task).join(Routine).filter(
-                Routine.is_active == True,
-                Task.is_active == True
-            ).all()
-            
-            for task in tasks:
-                is_due = False
-                # Simple check for daily tasks first
-                if task.frequency == TaskFrequency.DAILY:
-                    is_due = True
-                # Other frequencies would be checked here
-                elif task.frequency == TaskFrequency.WEEKLY:
-                    day_of_week = today.weekday()
-                    try:
-                        config = task.frequency_config
-                        if isinstance(config, str):
-                            import json
-                            config = json.loads(config)
-                        if 'days' in config and day_of_week in config['days']:
-                            is_due = True
-                    except:
-                        pass
-                
-                if is_due:
-                    due_tasks.append(task)
-            
-            completions = db.query(TaskCompletion).filter(
-                TaskCompletion.completed_at >= today_start,
-                TaskCompletion.completed_at <= today_end
-            ).all()
-            
-            completed_pairs = {(c.user_id, c.task_id) for c in completions}
-            
-            missed_by_user = {}
-            for task in due_tasks:
-                user_id = task.routine.user_id
-                if (user_id, task.id) not in completed_pairs:
-                    if user_id not in missed_by_user:
-                        missed_by_user[user_id] = []
-                    missed_by_user[user_id].append(task)
+            missed_by_user = task_service.get_missed_tasks_by_user(db)
             
             for user_id, missed_tasks in missed_by_user.items():
                 user = db.query(User).get(user_id)
                 if not user or not user.is_active:
                     continue
                     
-                roast_context = {
-                    "username": user.username,
-                    "missed_tasks": [{"title": task.title} for task in missed_tasks],
-                    "total_missed": len(missed_tasks),
-                    "roast_intensity": getattr(user, 'roast_intensity', 'medium'),
-                }
-                
-                try:
-                    stats = gamification_service.get_user_stats(db, user_id)
-                    if stats:
-                        roast_context["current_streak"] = stats.get('current_streak', 0)
-                        roast_context["completion_rate"] = stats.get('completion_rate', 0)
-                except:
-                    pass
+                roast_context = task_service.build_roast_context(user, missed_tasks)
                 
                 try:
                     roast_content = await ai_service.generate_roast(user, roast_context)
                     
                     message = f"🔥 *Personal Accountability Roast* 🔥\n\n"
-                    message += f"@{user.username} {roast_content}\n\n"
+                    message += f"@{user.whatsapp_number or user.username} {roast_content}\n\n"
                     
                     message += "*Today's Missed Tasks:*\n"
-                    for task in missed_tasks:
-                        message += f"• {task.title} ({task.points} pts)\n"
+                    for task, days_missed in missed_tasks:
+                        days_text = f"({days_missed} days)" if days_missed > 1 else ""
+                        message += f"• {task.title} ({task.points} pts) {days_text}\n"
                     
                     await whatsapp_service.send_group_message(message)
                     
@@ -151,8 +95,7 @@ class TaskScheduler:
         except Exception as e:
             print(f"Error in daily roast: {str(e)}")
         finally:
-            db.close()
-        
+            db.close()  
     async def send_daily_group_update(self):
         db = SessionLocal()
         try:
