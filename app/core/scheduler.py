@@ -142,7 +142,7 @@ class TaskScheduler:
                             roast_context = task_service.build_roast_context(user, user_missed_tasks)
                             
                             roast_content = await ai_service.generate_roast(user, roast_context)
-                            message += f"\n🔥 *Personal Roast for @{user.username}:* {roast_content}\n"
+                            message += f"\n🔥 *Personal Roast for @{user.whatsapp_number or user.username}:* {roast_content}\n"
                         except Exception as e:
                             print(f"Error generating roast for {user.username}: {str(e)}")
             
