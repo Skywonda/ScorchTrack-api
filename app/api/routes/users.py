@@ -58,17 +58,15 @@ def update_user_me(
             )
         current_user.email = user_in.email
         
-    if user_in.phone_number is not None:
-        user = db.query(User).filter(User.phone_number == user_in.phone_number).first()
+    if user_in.whatsapp_number is not None:
+        user = db.query(User).filter(User.whatsapp_number == user_in.whatsapp_number).first()
         if user and user.id != current_user.id:
             raise HTTPException(
                 status_code=400,
                 detail="A user with this phone number already exists",
             )
-        current_user.phone_number = user_in.phone_number
+        current_user.whatsapp_number = user_in.whatsapp_number
         
-    if user_in.full_name is not None:
-        current_user.full_name = user_in.full_name
     
     db.add(current_user)
     db.commit()
