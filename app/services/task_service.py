@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Set
 from sqlalchemy.orm import Session
 
-from app.db.models import Task, Routine, TaskCompletion, User, TaskFrequency
+from app.db.models import RoastIntensity, Task, Routine, TaskCompletion, User, TaskFrequency
 
 class TaskService:
     @staticmethod
@@ -120,7 +120,7 @@ class TaskService:
                 } 
                 for task, days_missed in missed_tasks
             ],
-            "roast_intensity": getattr(user, 'roast_intensity', 'medium'),
+            "roast_intensity": getattr(user, 'roast_intensity', RoastIntensity.EXTREME),
         }
         
         return context
